@@ -1,4 +1,4 @@
-# Evidence Council
+# Evidence Council Scoring System
 
 **Exhaustive evidence layer governance — bootstrap CI scoring, composite ranking, and human/agent review council for AI evaluation pipelines.**
 
