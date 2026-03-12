@@ -170,6 +170,210 @@ A React dashboard (`evidence_council/reviewer/ui/`) provides a queue interface f
 
 ---
 
+---
+title: Evidence Council Scoring System — Architecture
+---
+```mermaid ```
+flowchart TD
+    %% ── External inputs ───────────────────────────────────────────────
+    PROBE(["`**Probe**
+    probe.xss.reflection
+    probe.sqli.union
+    probe.prompt.injection`"])
+
+    DETECTOR(["`**Detector**
+    det.bert.toxic
+    det.semantic.v4`"])
+
+    LAYERS(["`**Evidence Layers**
+    Primary Layer
+    Candidate Layers 1..N`"])
+
+    %% ── Knowledge Layer ───────────────────────────────────────────────
+    subgraph KL["📚 Knowledge Layer  —  governance_knowledge_layer.jsonl"]
+        direction TB
+        KL_RANK["`**rank_candidates()**
+        EWMA recency-weighted priors
+        Approval rate penalty
+        Returns ordered layer list`"]
+
+        KL_COMMIT["`**commit()**
+        Append-only JSONL write
+        Every layer, every run
+        Stable run_id per record`"]
+
+        KL_PATCH["`**update_reviewer_verdict()**
+        Patches verdict + reviewer_id
+        Rewrites JSONL in place`"]
+
+        KL_HIST["`**historical_consistency()**
+        Std-dev of ci_lower
+        Across prior runs`"]
+
+        KL_APPR["`**reviewer_approval_rate()**
+        Optimistic prior = 1.0
+        Converges with verdicts`"]
+    end
+
+    %% ── Scoring Engine ────────────────────────────────────────────────
+    subgraph SCORE["⚙️  Scoring Engine"]
+        direction TB
+
+        subgraph BCI["bootstrap_ci.py"]
+            BCI_CORE["`**bootstrap_ci()**
+            ci_level = 0.98
+            n = 10,000 resamples
+            Returns CIResult`"]
+            BCI_THRESH{"`ci_lower
+            ≥ 0.98?`"}
+        end
+
+        subgraph COMP["composite.py"]
+            COMP_SCORE["`**compute_composite_score()**
+            CI lower    45%
+            Pass rate   25%
+            Cost        20%
+            Consistency 10%
+            × approval penalty`"]
+            COMP_CFG["`**ScoringConfig**
+            default()
+            healthcare()
+            cost_sensitive()`"]
+            COMP_CLOSE{"`Score gap
+            < 0.03?`"}
+        end
+    end
+
+    %% ── Governance Evaluator ──────────────────────────────────────────
+    subgraph GE["🏛️  GovernanceEvaluator"]
+        direction TB
+        GE_RANK["`**1. Rank via KL priors**
+        Order candidates
+        before evaluation`"]
+
+        GE_EVAL["`**2. Evaluate ALL layers**
+        Exhaustive — no first-pass win
+        Primary + every candidate`"]
+
+        GE_COLLECT["`**3. Collect qualifying**
+        All layers where
+        ci_lower ≥ 0.98`"]
+
+        GE_WINNER["`**4. Select winner**
+        Highest composite score
+        among qualifying layers`"]
+
+        GE_DECIDE{"`Decision`"}
+    end
+
+    %% ── Outcomes ──────────────────────────────────────────────────────
+    OUT_PASS(["`✅  PASS
+    Primary layer
+    cleared threshold`"])
+
+    OUT_SUB(["`🔄  SUBSTITUTED
+    Candidate layer
+    wins on composite`"])
+
+    OUT_FLAG(["`🚩  FLAG
+    No layer cleared
+    threshold`"])
+
+    %% ── Review Council ────────────────────────────────────────────────
+    subgraph RC["👥  Review Council"]
+        direction TB
+        RC_QUEUE["`**ReviewQueue**
+        Priority-ordered
+        Pending tasks`"]
+
+        RC_TASK["`**ReviewTask**
+        reason: no_passing_layer
+        reason: close_call
+        reason: reviewer_rejection`"]
+
+        RC_VERDICT["`**ReviewVerdict**
+        APPROVED
+        REJECTED → requeue
+        DEFERRED → elevate priority`"]
+
+        subgraph REVIEWERS["Reviewers"]
+            direction LR
+            HUMAN["`👤 Human
+            human:name`"]
+            AGENT["`🤖 Agent
+            agent:council-alpha`"]
+        end
+    end
+
+    %% ── Dashboard ─────────────────────────────────────────────────────
+    UI["`**Reviewer Dashboard**
+    reviewer_ui.jsx
+    CI bar visualisation
+    Override proposed winner
+    Verdict → KL patch`"]
+
+    %% ── Flow ──────────────────────────────────────────────────────────
+    PROBE       --> GE_RANK
+    DETECTOR    --> GE_RANK
+    LAYERS      --> GE_RANK
+
+    KL_RANK     --> GE_RANK
+    KL_HIST     --> COMP_SCORE
+    KL_APPR     --> COMP_SCORE
+
+    GE_RANK     --> GE_EVAL
+    GE_EVAL     --> BCI_CORE
+    BCI_CORE    --> BCI_THRESH
+    BCI_THRESH  -->|Yes| GE_COLLECT
+    BCI_THRESH  -->|No — recorded| GE_EVAL
+
+    COMP_CFG    --> COMP_SCORE
+    GE_COLLECT  --> COMP_SCORE
+    COMP_SCORE  --> GE_WINNER
+    GE_WINNER   --> COMP_CLOSE
+    COMP_CLOSE  -->|No| GE_DECIDE
+    COMP_CLOSE  -->|Yes → emit task| RC_TASK
+
+    GE_EVAL     --> KL_COMMIT
+    GE_DECIDE   -->|Primary wins| OUT_PASS
+    GE_DECIDE   -->|Candidate wins| OUT_SUB
+    GE_DECIDE   -->|None qualify| OUT_FLAG
+
+    OUT_FLAG    --> RC_TASK
+    RC_TASK     --> RC_QUEUE
+    RC_QUEUE    --> REVIEWERS
+    HUMAN       --> RC_VERDICT
+    AGENT       --> RC_VERDICT
+    RC_VERDICT  -->|Approved| KL_PATCH
+    RC_VERDICT  -->|Rejected| RC_TASK
+    RC_VERDICT  -->|Deferred| RC_QUEUE
+
+    RC_QUEUE    --> UI
+    UI          --> RC_VERDICT
+
+    KL_PATCH    -.->|Updates approval rate| KL_APPR
+    KL_COMMIT   -.->|Feeds next run priors| KL_RANK
+    KL_COMMIT   -.->|Feeds consistency| KL_HIST
+
+    %% ── Styles ────────────────────────────────────────────────────────
+    classDef input      fill:#1e3a5f,stroke:#3b82f6,color:#e2e8f0
+    classDef klnode     fill:#14532d,stroke:#22c55e,color:#e2e8f0
+    classDef scorenode  fill:#1e1b4b,stroke:#818cf8,color:#e2e8f0
+    classDef genode     fill:#431407,stroke:#f97316,color:#e2e8f0
+    classDef outcome    fill:#0f172a,stroke:#64748b,color:#e2e8f0
+    classDef rcnode     fill:#4a1942,stroke:#c084fc,color:#e2e8f0
+    classDef ui         fill:#1c1917,stroke:#a8a29e,color:#e2e8f0
+    classDef decision   fill:#292524,stroke:#78716c,color:#e2e8f0
+
+    class PROBE,DETECTOR,LAYERS input
+    class KL_RANK,KL_COMMIT,KL_PATCH,KL_HIST,KL_APPR klnode
+    class BCI_CORE,BCI_THRESH,COMP_SCORE,COMP_CFG,COMP_CLOSE scorenode
+    class GE_RANK,GE_EVAL,GE_COLLECT,GE_WINNER,GE_DECIDE genode
+    class OUT_PASS,OUT_SUB,OUT_FLAG outcome
+    class RC_QUEUE,RC_TASK,RC_VERDICT,HUMAN,AGENT rcnode
+    class UI ui
+    ```mermaid ```
+
 ## Project Structure
 
 ```
