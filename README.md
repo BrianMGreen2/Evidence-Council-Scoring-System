@@ -4,7 +4,7 @@
 
 Evidence Council is a standalone scoring and governance framework for AI probe evaluation. It evaluates every candidate evidence layer exhaustively against a 0.98 bootstrap confidence interval threshold, ranks all qualifying layers by composite score, and routes ambiguous or failing evaluations to a review council — human, agent, or both.
 
-Designed to be domain-agnostic: works with [garak](https://github.com/NVIDIA/garak) probe pipelines out of the box and adapts to healthcare, financial, and other regulated evaluation contexts via configurable `ScoringConfig` profiles.
+Designed to be domain-agnostic, uet aligned with many healthcare use cases where a high confidence interval is needed: works with [garak](https://github.com/NVIDIA/garak) probe pipelines out of the box and adapts to healthcare, financial, and other regulated evaluation contexts via configurable `ScoringConfig` profiles.
 
 ---
 
