@@ -373,7 +373,7 @@ flowchart TD
     class OUT_PASS,OUT_SUB,OUT_FLAG outcome
     class RC_QUEUE,RC_TASK,RC_VERDICT,HUMAN,AGENT rcnode
     class UI ui
-  
+  ```mermaid
 
 ## Project Structure
 
