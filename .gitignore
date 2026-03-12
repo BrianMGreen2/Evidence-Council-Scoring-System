@@ -1,0 +1,117 @@
+# ── Python ────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+MANIFEST
+
+# ── Virtual environments ───────────────────────────────────────────────────
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ── Package / dependency managers ─────────────────────────────────────────
+.pdm-python
+.pdm-build/
+pip-wheel-metadata/
+poetry.lock
+.python-version
+
+# ── Test and coverage ─────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+pytestdebug.log
+
+# ── Type checkers ─────────────────────────────────────────────────────────
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+
+# ── Linters / formatters ──────────────────────────────────────────────────
+.ruff_cache/
+
+# ── IDEs and editors ──────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Jupyter ───────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── Node / frontend ───────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+.yarn/
+
+# ── Distribution / packaging ──────────────────────────────────────────────
+*.tar.gz
+*.whl
+
+# ── ─────────────────────────────────────────────────────────────────────
+# Knowledge layer — EXPLICIT DECISION REQUIRED
+#
+# The knowledge layer JSONL file is the longitudinal governance record.
+# You must decide consciously whether to commit it:
+#
+#   COMMIT IT if:
+#     - This repo IS the canonical governance record for your deployment
+#     - You want evaluation history versioned alongside code
+#     - Auditors or regulators need access to the file via git history
+#
+#   IGNORE IT if:
+#     - The file is managed by an external system (database, S3, etc.)
+#     - Multiple deployments write to separate files
+#     - The file grows large enough that git is the wrong storage medium
+#
+# Default: COMMIT the knowledge layer (line below is commented out).
+# Uncomment to exclude it.
+#
+# governance_knowledge_layer.jsonl
+# ────────────────────────────────────────────────────────────────────────
+
+# ── Local environment / secrets ───────────────────────────────────────────
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+
+# ── OS artifacts ──────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
