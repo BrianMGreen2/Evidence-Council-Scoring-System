@@ -169,11 +169,12 @@ A React dashboard (`evidence_council/reviewer/ui/`) provides a queue interface f
 - `reviewer_id` supports both human (`human:name`) and agent (`agent:council-alpha`) identifiers
 
 ---
-
+## Architecture
+```mermaid
 ---
 title: Evidence Council Scoring System — Architecture
 ---
-```mermaid ```
+
 flowchart TD
     %% ── External inputs ───────────────────────────────────────────────
     PROBE(["`**Probe**
