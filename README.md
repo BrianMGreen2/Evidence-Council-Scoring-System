@@ -204,4 +204,4 @@ Pull requests welcome. When adding a new scoring component or changing default w
 
 ## License
 
-MIT
+Creative Commons
