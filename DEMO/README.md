@@ -7,6 +7,18 @@ this is an interactive explainatory slide for the demo
 
 https://evidence-council-scoring-system.vercel.app/
 
+The slide is fully interactive — click any threshold or trial count to update both columns live. That interactivity is intentional for the talk: you can use it as a live demo prop, not just a static slide.
+
+### What each design decision is doing:
+
+The two-column layout enforces the conceptual separation physically. The left column never bleeds into the right. The footer collapses both ideas into a single line each — threshold = what failure rate you accept (policy decision), trial count = how precisely you can measure it (engineering decision) — which is the sentence you want the audience to write down.
+
+The threshold column leads with the policy framing before any numbers appear. The miss rate bar makes the failure permission visible as a proportion rather than a fraction — 92.0% required pass vs. 99.2% required pass is harder to dismiss than "1 in 27 vs 1 in 125" for someone who doesn't work with fractions daily.
+
+The inline warning for the 0.95 threshold — "37 missed detections daily at a hospital routing 1,000 records" — is the clinical consequence made concrete without requiring any domain knowledge. It's calculated directly from the 1-in-27 miss rate and a plausible operational number; it doesn't require the audience to trust a citation.
+
+The trial count column's ruler visualization shows tick marks that physically thin out as n increases — making "precision" tactile rather than abstract. The footer note distinguishing the two as a policy decision vs. an engineering decision gives non-technical attendees the vocabulary to take this argument back to their own teams.
+
 
 ---
 
