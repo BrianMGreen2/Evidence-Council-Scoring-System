@@ -2,6 +2,12 @@
 
 A self-contained walkthrough of the Evidence Council governance pipeline using a synthetic dataset of realistic AI probe evaluation scenarios. No server, no database, no package install beyond NumPy. Runs entirely from the command line.
 
+## Governance Primer Slide
+this is an interactive explainatory slide for the demo
+
+https://evidence-council-scoring-system.vercel.app/
+
+
 ---
 
 ## Contents
