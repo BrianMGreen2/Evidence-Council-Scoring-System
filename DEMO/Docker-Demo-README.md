@@ -106,7 +106,7 @@ demo_README.md — Docker section inserted between Quick Start and the scenario 
 
 ## Pre-conference demo checklist:
 
-bash
+```bash
 ### 1. Build once at home on wifi
 docker build -t evidence-council-demo .
 
@@ -118,6 +118,7 @@ docker save evidence-council-demo | gzip > evidence-council-demo.tar.gz
 
 ### If Docker Desktop ever loses it, restore with:
 ### docker load < evidence-council-demo.tar.gz
+```
 
 That last step — saving the image to a .tar.gz — is the one people skip and regret. If you're on a different machine the day of, or Docker Desktop does something unexpected, you can restore the exact image without any network access.
 
