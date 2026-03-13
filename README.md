@@ -1,10 +1,10 @@
-# Evidence Council Scoring System
+# Evidence Council
 
 **Exhaustive evidence layer governance — bootstrap CI scoring, composite ranking, and human/agent review council for AI evaluation pipelines.**
 
 Evidence Council is a standalone scoring and governance framework for AI probe evaluation. It evaluates every candidate evidence layer exhaustively against a 0.98 bootstrap confidence interval threshold, ranks all qualifying layers by composite score, and routes ambiguous or failing evaluations to a review council — human, agent, or both.
 
-Designed to be domain-agnostic, uet aligned with many healthcare use cases where a high confidence interval is needed: works with [garak](https://github.com/NVIDIA/garak) probe pipelines out of the box and adapts to healthcare, financial, and other regulated evaluation contexts via configurable `ScoringConfig` profiles.
+Designed to be domain-agnostic: works with [garak](https://github.com/NVIDIA/garak) probe pipelines out of the box and adapts to healthcare, financial, and other regulated evaluation contexts via configurable `ScoringConfig` profiles.
 
 ---
 
@@ -15,7 +15,8 @@ Most evaluation pipelines apply a single evidence layer and accept the first res
 - **Exhaustive, not first-pass** — every candidate layer is evaluated; no layer auto-wins by being first
 - **Composite scoring** — CI lower bound, pass rate, cost, and historical consistency are weighted together
 - **Persistent knowledge layer** — every evaluation result is committed to an append-only artifact that informs future rankings via recency-weighted priors
-- **Council review** — close calls and failures are routed to a `ReviewTask` queue consumed by human reviewers or a configurable agent council
+- **Monte Carlo error detection** — boundary cases near the 0.98 threshold are classified, MC error is quantified, and a corrective action array routes statistically unstable decisions to the review council
+- **Council review** — close calls, failures, and boundary instability are routed to a `ReviewTask` queue consumed by human reviewers or a configurable agent council
 - **Domain profiles** — scoring weights are swappable without touching governance logic
 
 ---
@@ -99,6 +100,78 @@ Every evaluated layer — passing or not — is committed to the knowledge layer
 
 Tasks are consumed by the reviewer interface (React dashboard) or directly via `GovernanceEvaluator.apply_reviewer_decision()`. The `reviewer_id` field accepts both `human:name` and `agent:council-name` identifiers — the same interface works for human reviewers today and an agent council as it is built out.
 
+### 7. Monte Carlo Error Detection and Corrective Action
+
+Bootstrap CI is itself a stochastic estimator. Run the same `bootstrap_ci(passes=490, fails=10)` twice with different seeds and you get slightly different `ci_lower` values. Near the 0.98 threshold, this noise can flip a PASS/FAIL decision without any real change in layer quality. Evidence Council quantifies this uncertainty and responds with escalation rather than false precision.
+
+Every result is classified into one of five boundary states:
+
+| Status | Condition | Escalates? |
+|---|---|---|
+| `CLEAR_PASS` | `ci_lower >= 0.98 + margin` | No |
+| `CLEAR_FAIL` | `ci_upper < 0.98 - margin` | No |
+| `SOFT_BOUNDARY_PASS` | Passes but within `BOUNDARY_MARGIN = 0.02` | No |
+| `SOFT_BOUNDARY_FAIL` | Fails but within `BOUNDARY_MARGIN = 0.02` | **Yes** |
+| `HARD_BOUNDARY` | `\|ci_lower - 0.98\| < 3 × mc_error_lower` | **Yes** |
+
+`HARD_BOUNDARY` means the decision is inside the noise envelope of the estimator itself — more resamples alone cannot resolve it. The sigma distance metric makes this precise:
+
+```python
+sigma_distance = abs(ci_lower - GOVERNANCE_CI_THRESHOLD) / mc_error_lower
+# sigma_distance < 3.0 → HARD_BOUNDARY → mandatory council escalation
+```
+
+Each boundary state maps to an ordered **corrective action array**:
+
+```python
+CORRECTIVE_ACTION_ARRAY = (
+    CorrectiveActionRule(
+        status=BoundaryStatus.CLEAR_PASS,
+        actions=(CorrectiveAction.NONE,),
+        must_escalate=False,
+    ),
+    CorrectiveActionRule(
+        status=BoundaryStatus.SOFT_BOUNDARY_FAIL,
+        actions=(
+            CorrectiveAction.INCREASE_N_BOOTSTRAP,   # re-run at 50,000 resamples
+            CorrectiveAction.ATTACH_MC_ERROR,         # commit mc_error to KnowledgeRecord
+            CorrectiveAction.ESCALATE_TO_COUNCIL,     # emit ReviewTask(reason="boundary_instability")
+            CorrectiveAction.COMMIT_AS_UNSTABLE,      # is_boundary=True accumulates in consistency score
+        ),
+        must_escalate=True,
+    ),
+    CorrectiveActionRule(
+        status=BoundaryStatus.HARD_BOUNDARY,
+        actions=(
+            CorrectiveAction.INCREASE_N_BOOTSTRAP,
+            CorrectiveAction.ATTACH_MC_ERROR,
+            CorrectiveAction.REQUIRE_MORE_TRIALS,     # flag: layer needs more evaluation data
+            CorrectiveAction.ESCALATE_TO_COUNCIL,
+            CorrectiveAction.COMMIT_AS_UNSTABLE,
+        ),
+        must_escalate=True,
+    ),
+    # ... CLEAR_FAIL, SOFT_BOUNDARY_PASS rules
+)
+```
+
+The `adaptive_bootstrap_ci()` function handles this automatically — it runs a standard CI first, detects boundary cases, upgrades to 50,000 resamples, computes MC error, and returns the full classification:
+
+```python
+from evidence_council.scoring.monte_carlo_error import adaptive_bootstrap_ci
+
+ci, classification = adaptive_bootstrap_ci(passes=490, fails=10)
+
+print(classification.status)        # BoundaryStatus.SOFT_BOUNDARY_FAIL
+print(classification.must_escalate) # True
+print(classification.actions)       # (INCREASE_N_BOOTSTRAP, ATTACH_MC_ERROR, ...)
+print(classification.mc_estimate.sigma_distance)  # 1.84 → inside 3σ noise envelope
+```
+
+The knowledge layer's longitudinal feedback loop provides a second line of defence: a genuinely borderline layer will accumulate high `historical_stddev` across runs, which reduces its `consistency_component` and lowers its composite score — naturally deprioritising it in future rankings without any special-case logic.
+
+**MC Error Simulator** — an interactive dashboard (`evidence_council/reviewer/ui/mc_simulator.jsx`) lets you observe this instability directly. Set `passes=490, fails=10` and enable Auto mode to watch `ci_lower` fluctuate across runs, boundary status flip between `SOFT_BOUNDARY_FAIL` and `SOFT_BOUNDARY_PASS`, and the corrective action array update in real time.
+
 ---
 
 ## Scoring Profiles
@@ -167,6 +240,39 @@ A React dashboard (`evidence_council/reviewer/ui/`) provides a queue interface f
 - Reviewer can override proposed winner by selecting any qualifying layer
 - Verdict (`approved` / `rejected` / `deferred`) and notes are written back to the knowledge layer
 - `reviewer_id` supports both human (`human:name`) and agent (`agent:council-alpha`) identifiers
+
+---
+
+## Project Structure
+
+```
+evidence-council/
+├── evidence_council/
+│   ├── __init__.py
+│   ├── evaluator.py             # GovernanceEvaluator, EvidenceLayer, GovernanceResult
+│   ├── knowledge_layer.py       # KnowledgeLayer, KnowledgeRecord, commit/rank/patch
+│   └── scoring/
+│       ├── __init__.py
+│       ├── composite.py         # ScoringConfig, compute_composite_score
+│       ├── bootstrap_ci.py      # bootstrap_ci, GOVERNANCE_CI_THRESHOLD
+│       └── monte_carlo_error.py # MCErrorEstimate, BoundaryStatus, CORRECTIVE_ACTION_ARRAY
+│   └── reviewer/
+│       ├── __init__.py
+│       ├── tasks.py             # ReviewTask, ReviewQueue, ReviewVerdict
+│       └── ui/
+│           ├── reviewer_ui.jsx  # governance review council dashboard
+│           └── mc_simulator.jsx # Monte Carlo error interactive simulator
+├── tests/
+│   ├── test_bootstrap_ci.py
+│   ├── test_composite.py
+│   ├── test_knowledge_layer.py
+│   ├── test_evaluator.py
+│   └── test_monte_carlo_error.py
+├── docs/
+│   └── scoring.md               # composite weight rationale, domain profiles, MC error
+├── README.md
+└── pyproject.toml
+```
 
 ---
 ## Architecture
@@ -375,29 +481,7 @@ flowchart TD
     class UI ui
   ```
 
-## Project Structure
 
-```
-evidence-council/
-├── evidence_council/
-│   ├── __init__.py
-│   ├── evaluator.py          # GovernanceEvaluator, EvidenceLayer, GovernanceResult
-│   ├── knowledge_layer.py    # KnowledgeLayer, KnowledgeRecord, commit/rank/patch
-│   └── scoring/
-│       ├── __init__.py
-│       ├── composite.py      # ScoringConfig, compute_composite_score
-│       └── bootstrap_ci.py   # bootstrap_ci, GOVERNANCE_CI_THRESHOLD
-│   └── reviewer/
-│       ├── __init__.py
-│       ├── tasks.py          # ReviewTask, ReviewQueue
-│       └── ui/
-│           └── reviewer_ui.jsx
-├── tests/
-├── docs/
-│   └── scoring.md            # composite weight rationale and domain profiles
-├── README.md
-└── pyproject.toml
-```
 
 ---
 
