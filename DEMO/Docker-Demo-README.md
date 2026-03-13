@@ -104,19 +104,20 @@ demo_evidence_council.py — two additions: a module-level INTERACTIVE = True fl
 
 demo_README.md — Docker section inserted between Quick Start and the scenario walkthroughs.
 
-Pre-conference demo checklist:
+## Pre-conference demo checklist:
 
 bash
-# 1. Build once at home on wifi
+### 1. Build once at home on wifi
 docker build -t evidence-council-demo .
 
-# 2. Verify it runs clean offline (disconnect wifi, then run)
+### 2. Verify it runs clean offline (disconnect wifi, then run)
 docker run -it --rm evidence-council-demo non-interactive | tail -3
 
-# 3. Save the image to a file as a backup
+### 3. Save the image to a file as a backup
 docker save evidence-council-demo | gzip > evidence-council-demo.tar.gz
-# If Docker Desktop ever loses it, restore with:
-# docker load < evidence-council-demo.tar.gz
+
+### If Docker Desktop ever loses it, restore with:
+### docker load < evidence-council-demo.tar.gz
 
 That last step — saving the image to a .tar.gz — is the one people skip and regret. If you're on a different machine the day of, or Docker Desktop does something unexpected, you can restore the exact image without any network access.
 
