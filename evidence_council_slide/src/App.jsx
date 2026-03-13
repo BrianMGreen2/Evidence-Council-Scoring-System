@@ -97,6 +97,7 @@ export default function Slide() {
   const [activeThreshold, setActiveThreshold] = useState(2); // 0.98 default
   const [activeTrial, setActiveTrial] = useState(1);         // n=500 default
   const [revealed, setRevealed] = useState(false);
+  const [showDoc, setShowDoc] = useState(false); 
 
   useEffect(() => {
     const t = setTimeout(() => setRevealed(true), 100);
