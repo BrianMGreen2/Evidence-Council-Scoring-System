@@ -537,6 +537,81 @@ export default function Slide() {
           EVIDENCE COUNCIL · github.com/BrianMGreen2/evidence-council
         </div>
       </div>
+{/* Documentation Overlay Toggle */}
+const [showDoc, setShowDoc] = useState(false);
+
+{/* Add this button in the bottom left */}
+<button 
+  onClick={() => setShowDoc(true)}
+  style={{
+    position: "absolute", bottom: 20, left: 20,
+    background: "transparent", border: "1px solid #1a2540",
+    color: "#5a6a88", fontFamily: MONO, fontSize: 10,
+    padding: "6px 10px", borderRadius: 4, cursor: "pointer",
+    zIndex: 10
+  }}
+>
+  [ INFO / DOCS ]
+</button>
+
+{/* The Overlay Modal */}
+{showDoc && (
+  <div style={{
+    position: "absolute", inset: 0, zIndex: 100,
+    background: "rgba(8, 12, 18, 0.98)",
+    padding: "60px", overflowY: "auto",
+    color: "#c8d4e8", fontFamily: BODY
+  }}>
+    <button 
+      onClick={() => setShowDoc(false)}
+      style={{
+        position: "absolute", top: 30, right: 30,
+        background: "#22d3ee", border: "none", color: "#080c12",
+        padding: "8px 16px", borderRadius: 4, fontFamily: MONO, fontWeight: 700,
+        cursor: "pointer"
+      }}
+    >
+      CLOSE
+    </button>
+
+    <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+      <h2 style={{ fontFamily: DISPLAY, fontSize: 32, color: "#f0f4ff" }}>The Evidence Council Framework</h2>
+      <p style={{ fontSize: 16, lineHeight: 1.6, color: "#8a9ab8" }}>
+        This interactive primer addresses the "Implementation Gap" in AI Governance. 
+        Most organizations fail because they confuse a <strong>Policy Goal</strong> with 
+        <strong>Measurement Precision</strong>.
+      </p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "40px", marginTop: "40px" }}>
+        <div>
+          <h3 style={{ color: "#22d3ee", fontFamily: MONO, fontSize: 14 }}>1. THE THRESHOLD (POLICY)</h3>
+          <p style={{ fontSize: 14, lineHeight: 1.5 }}>
+            This is your <strong>Risk Tolerance</strong>. It is a humanistic and business decision. 
+            A "Safety-Critical" threshold isn't just a high number; it is an explicit agreement 
+            on the maximum allowable failure rate before a system is deemed unfit for clinical use.
+          </p>
+        </div>
+        <div>
+          <h3 style={{ color: "#4ade80", fontFamily: MONO, fontSize: 14 }}>2. TRIAL COUNT (PRECISION)</h3>
+          <p style={{ fontSize: 14, lineHeight: 1.5 }}>
+            This is your <strong>Ruler</strong>. It does not change the AI's performance; it only 
+            changes how clearly you can see it. Using 100 trials to measure a 99% CI policy 
+            is like trying to measure a hair's width with a yardstick.
+          </p>
+        </div>
+      </div>
+
+      <div style={{ marginTop: "40px", padding: "20px", border: "1px solid #1a2540", borderRadius: 8 }}>
+        <h3 style={{ fontSize: 18, color: "#f0f4ff" }}>Integration with PolicyFingerprintAI</h3>
+        <p style={{ fontSize: 14, color: "#8a9ab8" }}>
+          These parameters form the "Governance DNA" that <strong>PolicyFingerprintAI</strong> 
+          hashes and anchors. By defining these thresholds as immutable infrastructure, we move 
+          away from "vibe-based" evaluation into deterministic, auditable governance.
+        </p>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
