@@ -41,8 +41,6 @@ printf '\n\n\n\n\n' | python demo_evidence_council.py
 
 ---
 
----
-
 ## Running with Docker (recommended for live demos)
 
 Docker Desktop is the recommended path for conference presentations. The image is fully self-contained — no Python installation, no wifi, no "works on my machine" variables on the day.
@@ -97,6 +95,26 @@ docker run -it --rm evidence-council-demo non-interactive | tail -5
 ```bash
 docker build --no-cache -t evidence-council-demo .
 ```
+## NOTE WHAT WAS ADDED FOR DOCKER DEMO
+
+Three updated files. Here's exactly what to put in your repo and what changed:
+Dockerfile — goes in demo/. Uses python:3.12-slim, pins NumPy to 2.2.4, creates a non-root demo user, sets TERM=xterm-256color so the ANSI colors render correctly inside Docker Desktop's terminal (that env var is easy to forget and causes the whole output to look broken without it).
+demo_evidence_council.py — two additions: a module-level INTERACTIVE = True flag, and the non-interactive argument check at __main__. When non-interactive, it sleeps 1.5 seconds between scenarios instead of waiting for Enter — slow enough to read, fast enough to not be painful for recordings. It also detects if /demo/output is mounted and automatically copies the JSONL there.
+demo_README.md — Docker section inserted between Quick Start and the scenario walkthroughs.
+Your pre-conference checklist:
+bash# 1. Build once at home on wifi
+docker build -t evidence-council-demo .
+
+# 2. Verify it runs clean offline (disconnect wifi, then run)
+docker run -it --rm evidence-council-demo non-interactive | tail -3
+
+# 3. Save the image to a file as a backup
+docker save evidence-council-demo | gzip > evidence-council-demo.tar.gz
+# If Docker Desktop ever loses it, restore with:
+# docker load < evidence-council-demo.tar.gz
+That last step — saving the image to a .tar.gz — is the one people skip and regret. If you're on a different machine the day of, or Docker Desktop does something unexpected, you can restore the exact image without any network access.
+
+---
 
 ## What the Demo Shows
 
